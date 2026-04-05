@@ -1,0 +1,115 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Serverless feedback form with React frontend and Node.js Lambda backend.
+
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    Timeout: 30
+    MemorySize: 256
+    Environment:
+      Variables:
+        TABLE_NAME: !Ref FeedbackTable
+        BUCKET_NAME: !Ref FeedbackUploadsBucket
+        ADMIN_EMAIL: !Ref AdminEmail
+        ALLOWED_ORIGIN: !Ref AllowedOrigin
+        MAX_PDF_SIZE_BYTES: !Ref MaxPdfSizeBytes
+        AWS_REGION: !Ref AWS::Region
+
+Parameters:
+  AdminEmail:
+    Type: String
+    Description: Verified SES email address that receives feedback notifications.
+  AllowedOrigin:
+    Type: String
+    Default: '*'
+    Description: Allowed CORS origin for the feedback API.
+  MaxPdfSizeBytes:
+    Type: Number
+    Default: 5242880
+    Description: Maximum allowed PDF attachment size in bytes.
+  FrontendBucketName:
+    Type: String
+    Default: ''
+    Description: Optional existing bucket name for built frontend assets.
+
+Conditions:
+  CreateFrontendBucket: !Equals [!Ref FrontendBucketName, '']
+
+Resources:
+  SubmitFeedbackFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/
+      Handler: submitFeedback.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref FeedbackTable
+        - S3CrudPolicy:
+            BucketName: !Ref FeedbackUploadsBucket
+        - Statement:
+            - Effect: Allow
+              Action:
+                - ses:SendEmail
+                - ses:SendRawEmail
+              Resource: '*'
+      Events:
+        SubmitFeedback:
+          Type: Api
+          Properties:
+            Path: /submit
+            Method: post
+        SubmitFeedbackOptions:
+          Type: Api
+          Properties:
+            Path: /submit
+            Method: options
+
+  FeedbackTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: feedback_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: feedback_id
+          KeyType: HASH
+
+  FeedbackUploadsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Condition: CreateFrontendBucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      WebsiteConfiguration:
+        IndexDocument: index.html
+
+Outputs:
+  ApiBaseUrl:
+    Description: Base URL for the feedback API.
+    Value: !Sub 'https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod'
+
+  SubmitEndpoint:
+    Description: Full submit endpoint for the frontend.
+    Value: !Sub 'https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/submit'
+
+  FeedbackUploadsBucketName:
+    Description: Bucket storing uploaded PDF files.
+    Value: !Ref FeedbackUploadsBucket
+
+  FrontendBucketNameOutput:
+    Description: Frontend hosting bucket created by SAM when FrontendBucketName is not provided.
+    Value: !If [CreateFrontendBucket, !Ref FrontendBucket, !Ref FrontendBucketName]
