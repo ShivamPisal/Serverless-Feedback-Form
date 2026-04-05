@@ -1,6 +1,7 @@
 import { useState } from "react";
 
-const apiUrl = import.meta.env.VITE_FEEDBACK_API_URL || "http://127.0.0.1:3000/submit";
+const apiUrl = import.meta.env.VITE_FEEDBACK_API_URL?.trim() || "";
+const isDemoMode = !apiUrl;
 
 const readFileAsBase64 = (file) =>
   new Promise((resolve, reject) => {
@@ -45,6 +46,13 @@ function App() {
     setIsSubmitting(true);
 
     try {
+      if (isDemoMode) {
+        await new Promise((resolve) => setTimeout(resolve, 600));
+        setModalMessage("Demo mode: feedback submission UI preview completed successfully.");
+        resetForm();
+        return;
+      }
+
       const payload = {
         ...formState,
         file_base64: file ? await readFileAsBase64(file) : null,
@@ -82,7 +90,9 @@ function App() {
               <p className="form-kicker">Feedback</p>
               <h2>Get in touch</h2>
             </div>
-            <p className="form-support">Complete the form and we will review it.</p>
+            <p className="form-support">
+              {isDemoMode ? "Live portfolio preview. Submission is shown in demo mode." : "Complete the form and we will review it."}
+            </p>
           </div>
 
           <form className="feedback-form" onSubmit={handleSubmit}>

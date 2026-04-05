@@ -144,8 +144,10 @@ To use that workflow:
 
 1. create a GitHub repository and push this code
 2. open repository settings and enable GitHub Pages with `GitHub Actions` as the source
-3. add the repository secret `VITE_FEEDBACK_API_URL`
+3. optionally add the repository secret `VITE_FEEDBACK_API_URL` if you want the live frontend connected to a real backend
 4. push to `main`
+
+If `VITE_FEEDBACK_API_URL` is not provided, the frontend runs in demo mode on GitHub Pages and shows the submission experience without sending data to a backend.
 
 ## AWS Resources Used
 
