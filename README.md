@@ -94,12 +94,6 @@ npm install
 npm run dev
 ```
 
-Set the API URL in `frontend/.env`:
-
-```env
-VITE_FEEDBACK_API_URL=http://127.0.0.1:3000/submit
-```
-
 ### Backend
 
 ```bash
